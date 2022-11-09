@@ -25,7 +25,7 @@ angular.module('ethExplorer', ['ngRoute','ui.bootstrap'])
             });
 
 		// use the HTML5 History API. needs base href and server-side rewrite.
-		//$locationProvider.html5Mode(true); // FIXME use # for pure static deployment
+		$locationProvider.html5Mode(false); // FIXME use # for pure static deployment
     })
     .run(function($rootScope) {
         var web3 = new Web3();
