@@ -1,0 +1,115 @@
+<div class="container" style="padding-top: 50px;">
+
+    <h1>区块 
+        <small>查看区块信息</small>
+    </h1>
+
+    <div id="block-97785883" class="blockdiv">
+        <table class="table table-striped" cellpadding="0" cellspacing="0" style="padding:0px;float:left;margin:0px;width:100%">
+            <tbody>
+            <tr>
+                <th colspan="3" align="left"><a class="hash-link" href="./#/block/{{blockId}}">{{hash}}</a> <span class="pull-right"></span></th>
+            </tr>
+            </tbody>
+        </table>
+        <div style="padding-bottom:30px;width:100%;text-align:right;clear:both">
+            <button class="btn btn-primary">{{conf}}</button>
+            <button class="btn btn-success cb"><span>{{gasUsed}} Gas单位</span></button>
+        </div>
+        <table class="table table-striped">
+            <tbody><tr>
+                <th colspan="2" style="text-align:left">概要</th>
+            </tr>
+            <tr>
+                <td>区块高度</td>
+                <td><a href="./#/block/{{blockNumber}}">{{number}}</a></td>
+            </tr>
+            <tr>
+                <td>上一区块</td>
+                <td>
+					<a href="./#/block/{{number-1}}">{{parentHash}}</a>
+                </td>
+            </tr>
+            <tr>
+                <td>时间戳</td>
+                <td>
+					{{timestamp}}，即 {{timestamp_localestring}}
+                </td>
+            </tr>
+            <tr>
+                <td>难度</td>
+                <td>
+                    {{difficulty}}
+                </td>
+            </tr>
+            <!--tr>
+                <td>Nonce</td>
+                <td>{{nonce}}</td>
+            </tr-->
+            <tr>
+                <td>尺寸</td>
+                <td>{{size}} 字节</td>
+            </tr>
+            <!--tr>
+                <td>Miner</td>
+                <td><a href="./#/address/{{miner}}">{{miner}}</a></td>
+            </tr-->
+            <tr>
+                <td>Gas上限</td>
+                <td>{{gasLimit}} 单位</td>
+            </tr>
+            <tr>
+                <td>附加数据</td>
+                <td>{{extraData}}</td>
+            </tr>
+
+            <tr>
+                <td nowrap>附加数据(转换后)</td>
+                <td>{{dataFromHex}}</td>
+            </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <h2 style="margin-top: 30px;">
+      交易
+      <small>- 包含于当前区块中</small>
+    </h2>
+
+    <div ng-repeat="tx in transactions">
+      <table class="table table-striped">
+          <tbody>
+          <tr>
+              <th colspan="2" style="text-align:left">交易 #{{$index+1}}</th>
+          </tr>
+          <tr>
+              <td>哈希 #</td>
+              <td><a href="./#/tx/{{tx.hash}}">{{tx.hash}}</a></td>
+          </tr>
+          <tr>
+              <td>从</td>
+              <td><a href="./#/address/{{tx.from}}">{{tx.from}}</a></td>
+          </tr>
+          <tr>
+              <td>至</td>
+              <td><a href="./#/address/{{tx.to}}">{{tx.to}}</a></td>
+          </tr>
+          <tr>
+              <td>Gas消耗量</td>
+              <td>{{tx.gas}} 单位</a></td>
+          </tr>
+          <tr>
+              <td>输入数据</td>
+              <td>{{tx.input}}</a></td>
+          </tr>
+          <tr>
+              <td>发送价值</td>
+			  <td>{{tx.valueJ}} J，即 {{tx.value}} e</a></td>
+          </tr>
+          </tbody>
+      </table>
+      <hr>
+    </div>
+
+</div>
