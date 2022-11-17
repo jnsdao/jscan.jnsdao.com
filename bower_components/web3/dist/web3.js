@@ -1870,7 +1870,7 @@ module.exports = function (value, options) {
 };
 
 
-},{"crypto-js":57,"crypto-js/sha3":78}],20:[function(require,module,exports){
+},{"crypto-js":58,"crypto-js/sha3":79}],20:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -1908,17 +1908,22 @@ module.exports = function (value, options) {
 
 
 var BigNumber = require('bignumber.js');
+var sha3 = require('./sha3.js');
 var utf8 = require('utf8');
 
 var unitMap = {
+    'noether':      '0',    
     'wei':          '1',
     'kwei':         '1000',
-    'ada':          '1000',
+    'Kwei':         '1000',
+    'babbage':      '1000',
     'femtoether':   '1000',
     'mwei':         '1000000',
-    'babbage':      '1000000',
+    'Mwei':         '1000000',
+    'lovelace':     '1000000',
     'picoether':    '1000000',
     'gwei':         '1000000000',
+    'Gwei':         '1000000000',
     'shannon':      '1000000000',
     'nanoether':    '1000000000',
     'nano':         '1000000000',
@@ -1931,7 +1936,6 @@ var unitMap = {
     'ether':        '1000000000000000000',
     'kether':       '1000000000000000000000',
     'grand':        '1000000000000000000000',
-    'einstein':     '1000000000000000000000',
     'mether':       '1000000000000000000000000',
     'gether':       '1000000000000000000000000000',
     'tether':       '1000000000000000000000000000000'
@@ -2166,13 +2170,13 @@ var getValueOfUnit = function (unit) {
  *
  * Possible units are:
  *   SI Short   SI Full        Effigy       Other
- * - kwei       femtoether     ada
- * - mwei       picoether      babbage
+ * - kwei       femtoether     babbage
+ * - mwei       picoether      lovelace
  * - gwei       nanoether      shannon      nano
  * - --         microether     szabo        micro
  * - --         milliether     finney       milli
  * - ether      --             --
- * - kether                    einstein     grand
+ * - kether                    --           grand
  * - mether
  * - gether
  * - tether
@@ -2193,13 +2197,14 @@ var fromWei = function(number, unit) {
  *
  * Possible units are:
  *   SI Short   SI Full        Effigy       Other
- * - kwei       femtoether     ada
- * - mwei       picoether      babbage
+ * - kwei       femtoether     babbage
+ * - mwei       picoether      lovelace
  * - gwei       nanoether      shannon      nano
+ * - --         microether     szabo        micro
  * - --         microether     szabo        micro
  * - --         milliether     finney       milli
  * - ether      --             --
- * - kether                    einstein     grand
+ * - kether                    --           grand
  * - mether
  * - gether
  * - tether
@@ -2269,7 +2274,66 @@ var isStrictAddress = function (address) {
  * @return {Boolean}
 */
 var isAddress = function (address) {
-    return /^(0x)?[0-9a-f]{40}$/i.test(address);
+    if (!/^(0x)?[0-9a-f]{40}$/i.test(address)) {
+        // check if it has the basic requirements of an address
+        return false;
+    } else if (/^(0x)?[0-9a-f]{40}$/.test(address) || /^(0x)?[0-9A-F]{40}$/.test(address)) {
+        // If it's all small caps or all all caps, return true
+        return true;
+    } else {
+        // Otherwise check each case
+        return isChecksumAddress(address);
+    }
+};
+
+
+
+/**
+ * Checks if the given string is a checksummed address
+ *
+ * @method isChecksumAddress
+ * @param {String} address the given HEX adress
+ * @return {Boolean}
+*/
+var isChecksumAddress = function (address) {    
+    // Check each case
+    address = address.replace('0x','');
+    var addressHash = sha3(address.toLowerCase());
+
+    for (var i = 0; i < 40; i++ ) { 
+        // the nth letter should be uppercase if the nth digit of casemap is 1
+        if ((parseInt(addressHash[i], 16) > 7 && address[i].toUpperCase() !== address[i]) || (parseInt(addressHash[i], 16) <= 7 && address[i].toLowerCase() !== address[i])) {
+            return false;
+        }
+    }
+    return true;    
+};
+
+
+
+/**
+ * Makes a checksum address
+ *
+ * @method toChecksumAddress
+ * @param {String} address the given HEX adress
+ * @return {String}
+*/
+var toChecksumAddress = function (address) { 
+    if (typeof address === 'undefined') return '';
+
+    address = address.toLowerCase().replace('0x','');
+    var addressHash = sha3(address);
+    var checksumAddress = '0x';
+
+    for (var i = 0; i < address.length; i++ ) { 
+        // If ith character is 9 to f then make it uppercase 
+        if (parseInt(addressHash[i], 16) > 7) {
+          checksumAddress += address[i].toUpperCase();
+        } else {
+            checksumAddress += address[i];
+        }
+    }
+    return checksumAddress;
 };
 
 /**
@@ -2395,6 +2459,8 @@ module.exports = {
     isBigNumber: isBigNumber,
     isStrictAddress: isStrictAddress,
     isAddress: isAddress,
+    isChecksumAddress: isChecksumAddress,
+    toChecksumAddress: toChecksumAddress,
     isFunction: isFunction,
     isString: isString,
     isObject: isObject,
@@ -2403,9 +2469,9 @@ module.exports = {
     isJson: isJson
 };
 
-},{"bignumber.js":"bignumber.js","utf8":83}],21:[function(require,module,exports){
+},{"./sha3.js":19,"bignumber.js":"bignumber.js","utf8":84}],21:[function(require,module,exports){
 module.exports={
-    "version": "0.14.0"
+    "version": "0.15.3"
 }
 
 },{}],22:[function(require,module,exports){
@@ -2425,7 +2491,7 @@ module.exports={
     You should have received a copy of the GNU Lesser General Public License
     along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** 
+/**
  * @file web3.js
  * @authors:
  *   Jeffrey Wilcke <jeff@ethdev.com>
@@ -2442,6 +2508,7 @@ var Eth = require('./web3/methods/eth');
 var DB = require('./web3/methods/db');
 var Shh = require('./web3/methods/shh');
 var Net = require('./web3/methods/net');
+var Personal = require('./web3/methods/personal');
 var Settings = require('./web3/settings');
 var version = require('./version.json');
 var utils = require('./utils/utils');
@@ -2461,9 +2528,10 @@ function Web3 (provider) {
     this.db = new DB(this);
     this.shh = new Shh(this);
     this.net = new Net(this);
+    this.personal = new Personal(this);
     this.settings = new Settings();
     this.version = {
-        version: version.version
+        api: version.version
     };
     this.providers = {
         HttpProvider: HttpProvider,
@@ -2502,6 +2570,8 @@ Web3.prototype.toBigNumber = utils.toBigNumber;
 Web3.prototype.toWei = utils.toWei;
 Web3.prototype.fromWei = utils.fromWei;
 Web3.prototype.isAddress = utils.isAddress;
+Web3.prototype.isChecksumAddress = utils.isChecksumAddress;
+Web3.prototype.toChecksumAddress = utils.toChecksumAddress;
 Web3.prototype.isIBAN = utils.isIBAN;
 Web3.prototype.sha3 = sha3;
 
@@ -2516,7 +2586,7 @@ Web3.prototype.fromICAP = function (icap) {
 var properties = function () {
     return [
         new Property({
-            name: 'version.client',
+            name: 'version.node',
             getter: 'web3_clientVersion'
         }),
         new Property({
@@ -2548,7 +2618,7 @@ Web3.prototype.createBatch = function () {
 module.exports = Web3;
 
 
-},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/iban":33,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/eth":38,"./web3/methods/net":39,"./web3/methods/shh":40,"./web3/property":43,"./web3/requestmanager":44,"./web3/settings":45}],23:[function(require,module,exports){
+},{"./utils/sha3":19,"./utils/utils":20,"./version.json":21,"./web3/batch":24,"./web3/extend":28,"./web3/httpprovider":32,"./web3/iban":33,"./web3/ipcprovider":34,"./web3/methods/db":37,"./web3/methods/eth":38,"./web3/methods/net":39,"./web3/methods/personal":40,"./web3/methods/shh":41,"./web3/property":44,"./web3/requestmanager":45,"./web3/settings":46}],23:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2578,8 +2648,8 @@ var utils = require('../utils/utils');
 var Filter = require('./filter');
 var watches = require('./methods/watches');
 
-var AllSolidityEvents = function (web3, json, address) {
-    this._web3 = web3;
+var AllSolidityEvents = function (requestManager, json, address) {
+    this._requestManager = requestManager;
     this._json = json;
     this._address = address;
 };
@@ -2613,7 +2683,7 @@ AllSolidityEvents.prototype.decode = function (data) {
         return data;
     }
 
-    var event = new SolidityEvent(this._web3, match, this._address);
+    var event = new SolidityEvent(this._requestManager, match, this._address);
     return event.decode(data);
 };
 
@@ -2627,7 +2697,7 @@ AllSolidityEvents.prototype.execute = function (options, callback) {
 
     var o = this.encode(options);
     var formatter = this.decode.bind(this);
-    return new Filter(this._web3, o, watches.eth(), formatter, callback);
+    return new Filter(this._requestManager, o, watches.eth(), formatter, callback);
 };
 
 AllSolidityEvents.prototype.attachToContract = function (contract) {
@@ -2638,7 +2708,7 @@ AllSolidityEvents.prototype.attachToContract = function (contract) {
 module.exports = AllSolidityEvents;
 
 
-},{"../utils/sha3":19,"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":41}],24:[function(require,module,exports){
+},{"../utils/sha3":19,"../utils/utils":20,"./event":27,"./filter":29,"./formatters":30,"./methods/watches":42}],24:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -2723,7 +2793,7 @@ module.exports = Batch;
     You should have received a copy of the GNU Lesser General Public License
     along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** 
+/**
  * @file contract.js
  * @author Marek Kotewicz <marek@ethdev.com>
  * @date 2014
@@ -2765,7 +2835,7 @@ var addFunctionsToContract = function (contract) {
     contract.abi.filter(function (json) {
         return json.type === 'function';
     }).map(function (json) {
-        return new SolidityFunction(contract._web3, json, contract.address);
+        return new SolidityFunction(contract._eth, json, contract.address);
     }).forEach(function (f) {
         f.attachToContract(contract);
     });
@@ -2783,11 +2853,11 @@ var addEventsToContract = function (contract) {
         return json.type === 'event';
     });
 
-    var All = new AllEvents(contract._web3, events, contract.address);
+    var All = new AllEvents(contract._eth._requestManager, events, contract.address);
     All.attachToContract(contract);
-    
+
     events.map(function (json) {
-        return new SolidityEvent(contract._web3, json, contract.address);
+        return new SolidityEvent(contract._eth._requestManager, json, contract.address);
     }).forEach(function (e) {
         e.attachToContract(contract);
     });
@@ -2807,13 +2877,13 @@ var checkForContractAddress = function(contract, callback){
         callbackFired = false;
 
     // wait for receipt
-    var filter = contract._web3.eth.filter('latest', function(e){
+    var filter = contract._eth.filter('latest', function(e){
         if (!e && !callbackFired) {
             count++;
 
             // stop watching after 50 blocks (timeout)
             if (count > 50) {
-                
+
                 filter.stopWatching();
                 callbackFired = true;
 
@@ -2825,15 +2895,15 @@ var checkForContractAddress = function(contract, callback){
 
             } else {
 
-                contract._web3.eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
+                contract._eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
                     if(receipt && !callbackFired) {
 
-                        contract._web3.eth.getCode(receipt.contractAddress, function(e, code){
-                            /*jshint maxcomplexity: 5 */
+                        contract._eth.getCode(receipt.contractAddress, function(e, code){
+                            /*jshint maxcomplexity: 6 */
 
-                            if(callbackFired)
+                            if(callbackFired || !code)
                                 return;
-                            
+
                             filter.stopWatching();
                             callbackFired = true;
 
@@ -2871,9 +2941,67 @@ var checkForContractAddress = function(contract, callback){
  * @method ContractFactory
  * @param {Array} abi
  */
-var ContractFactory = function (web3, abi) {
-    this.web3 = web3;
+var ContractFactory = function (eth, abi) {
+    this.eth = eth;
     this.abi = abi;
+
+    /**
+     * Should be called to create new contract on a blockchain
+     *
+     * @method new
+     * @param {Any} contract constructor param1 (optional)
+     * @param {Any} contract constructor param2 (optional)
+     * @param {Object} contract transaction object (required)
+     * @param {Function} callback
+     * @returns {Contract} returns contract instance
+     */
+    this.new = function () {
+        var contract = new Contract(this.eth, this.abi);
+
+        // parse arguments
+        var options = {}; // required!
+        var callback;
+
+        var args = Array.prototype.slice.call(arguments);
+        if (utils.isFunction(args[args.length - 1])) {
+            callback = args.pop();
+        }
+
+        var last = args[args.length - 1];
+        if (utils.isObject(last) && !utils.isArray(last)) {
+            options = args.pop();
+        }
+
+        var bytes = encodeConstructorParams(this.abi, args);
+        options.data += bytes;
+
+        if (callback) {
+
+            // wait for the contract address adn check if the code was deployed
+            this.eth.sendTransaction(options, function (err, hash) {
+                if (err) {
+                    callback(err);
+                } else {
+                    // add the transaction hash
+                    contract.transactionHash = hash;
+
+                    // call callback for the first time
+                    callback(null, contract);
+
+                    checkForContractAddress(contract, callback);
+                }
+            });
+        } else {
+            var hash = this.eth.sendTransaction(options);
+            // add the transaction hash
+            contract.transactionHash = hash;
+            checkForContractAddress(contract);
+        }
+
+        return contract;
+    };
+
+    this.new.getData = this.getData.bind(this);
 };
 
 /**
@@ -2887,61 +3015,7 @@ var ContractFactory = function (web3, abi) {
     //return new ContractFactory(abi);
 //};
 
-/**
- * Should be called to create new contract on a blockchain
- * 
- * @method new
- * @param {Any} contract constructor param1 (optional)
- * @param {Any} contract constructor param2 (optional)
- * @param {Object} contract transaction object (required)
- * @param {Function} callback
- * @returns {Contract} returns contract instance
- */
-ContractFactory.prototype.new = function () {
-    var contract = new Contract(this.web3, this.abi);
 
-    // parse arguments
-    var options = {}; // required!
-    var callback;
-
-    var args = Array.prototype.slice.call(arguments);
-    if (utils.isFunction(args[args.length - 1])) {
-        callback = args.pop();
-    }
-
-    var last = args[args.length - 1];
-    if (utils.isObject(last) && !utils.isArray(last)) {
-        options = args.pop();
-    }
-
-    var bytes = encodeConstructorParams(this.abi, args);
-    options.data += bytes;
-
-    if (callback) {
-
-        // wait for the contract address adn check if the code was deployed
-        this.web3.eth.sendTransaction(options, function (err, hash) {
-            if (err) {
-                callback(err);
-            } else {
-                // add the transaction hash
-                contract.transactionHash = hash;
-
-                // call callback for the first time
-                callback(null, contract);
-
-                checkForContractAddress(contract, callback);
-            }
-        });
-    } else {
-        var hash = this.web3.eth.sendTransaction(options);
-        // add the transaction hash
-        contract.transactionHash = hash;
-        checkForContractAddress(contract);
-    }
-
-    return contract;
-};
 
 /**
  * Should be called to get access to existing contract on a blockchain
@@ -2953,17 +3027,37 @@ ContractFactory.prototype.new = function () {
  * otherwise calls callback function (err, contract)
  */
 ContractFactory.prototype.at = function (address, callback) {
-    var contract = new Contract(this.web3, this.abi, address);
+    var contract = new Contract(this.eth, this.abi, address);
 
-    // this functions are not part of prototype, 
+    // this functions are not part of prototype,
     // because we dont want to spoil the interface
     addFunctionsToContract(contract);
     addEventsToContract(contract);
-    
+
     if (callback) {
         callback(null, contract);
-    } 
+    }
     return contract;
+};
+
+/**
+ * Gets the data, which is data to deploy plus constructor params
+ *
+ * @method getData
+ */
+ContractFactory.prototype.getData = function () {
+    var options = {}; // required!
+    var args = Array.prototype.slice.call(arguments);
+
+    var last = args[args.length - 1];
+    if (utils.isObject(last) && !utils.isArray(last)) {
+        options = args.pop();
+    }
+
+    var bytes = encodeConstructorParams(this.abi, args);
+    options.data += bytes;
+
+    return options.data;
 };
 
 /**
@@ -2973,15 +3067,14 @@ ContractFactory.prototype.at = function (address, callback) {
  * @param {Array} abi
  * @param {Address} contract address
  */
-var Contract = function (web3, abi, address) {
-    this._web3 = web3;
+var Contract = function (eth, abi, address) {
+    this._eth = eth;
     this.transactionHash = null;
     this.address = address;
     this.abi = abi;
 };
 
 module.exports = ContractFactory;
-
 
 },{"../solidity/coder":7,"../utils/utils":20,"./allevents":23,"./event":27,"./function":31}],26:[function(require,module,exports){
 /*
@@ -3056,8 +3149,8 @@ var watches = require('./methods/watches');
 /**
  * This prototype should be used to create event filters
  */
-var SolidityEvent = function (web3, json, address) {
-    this._web3 = web3;
+var SolidityEvent = function (requestManager, json, address) {
+    this._requestManager = requestManager;
     this._params = json.inputs;
     this._name = utils.transformToFullName(json);
     this._address = address;
@@ -3212,7 +3305,7 @@ SolidityEvent.prototype.execute = function (indexed, options, callback) {
     
     var o = this.encode(indexed, options);
     var formatter = this.decode.bind(this);
-    return new Filter(this._web3, o, watches.eth(), formatter, callback);
+    return new Filter(this._requestManager, o, watches.eth(), formatter, callback);
 };
 
 /**
@@ -3233,7 +3326,7 @@ SolidityEvent.prototype.attachToContract = function (contract) {
 module.exports = SolidityEvent;
 
 
-},{"../solidity/coder":7,"../utils/sha3":19,"../utils/utils":20,"./filter":29,"./formatters":30,"./methods/watches":41}],28:[function(require,module,exports){
+},{"../solidity/coder":7,"../utils/sha3":19,"../utils/utils":20,"./filter":29,"./formatters":30,"./methods/watches":42}],28:[function(require,module,exports){
 var formatters = require('./formatters');
 var utils = require('./../utils/utils');
 var Method = require('./method');
@@ -3283,7 +3376,7 @@ var extend = function (web3) {
 module.exports = extend;
 
 
-},{"./../utils/utils":20,"./formatters":30,"./method":36,"./property":43}],29:[function(require,module,exports){
+},{"./../utils/utils":20,"./formatters":30,"./method":36,"./property":44}],29:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -3339,7 +3432,7 @@ var getOptions = function (options) {
 
     if (utils.isString(options)) {
         return options;
-    } 
+    }
 
     options = options || {};
 
@@ -3349,14 +3442,14 @@ var getOptions = function (options) {
         return (utils.isArray(topic)) ? topic.map(toTopic) : toTopic(topic);
     });
 
-    // lazy load
     return {
         topics: options.topics,
+        from: options.from,
         to: options.to,
         address: options.address,
         fromBlock: formatters.inputBlockNumberFormatter(options.fromBlock),
-        toBlock: formatters.inputBlockNumberFormatter(options.toBlock) 
-    }; 
+        toBlock: formatters.inputBlockNumberFormatter(options.toBlock)
+    };
 };
 
 /**
@@ -3364,7 +3457,7 @@ Adds the callback and sets up the methods, to iterate over the results.
 
 @method getLogsAtStart
 @param {Object} self
-@param {funciton} 
+@param {funciton}
 */
 var getLogsAtStart = function(self, callback){
     // call getFilterLogs for the first watch callback start
@@ -3416,14 +3509,14 @@ var pollFilter = function(self) {
 
 };
 
-var Filter = function (web3, options, methods, formatter, callback) {
+var Filter = function (requestManager, options, methods, formatter, callback) {
     var self = this;
     var implementation = {};
     methods.forEach(function (method) {
-        method.setRequestManager(web3._requestManager);
+        method.setRequestManager(requestManager);
         method.attachToObject(implementation);
     });
-    this.requestManager = web3._requestManager;
+    this.requestManager = requestManager;
     this.options = getOptions(options);
     this.implementation = implementation;
     this.filterId = null;
@@ -3454,7 +3547,7 @@ var Filter = function (web3, options, methods, formatter, callback) {
                 pollFilter(self);
 
             // start to watch immediately
-            if(callback) {
+            if(typeof callback === 'function') {
                 return self.watch(callback);
             }
         }
@@ -3727,7 +3820,7 @@ var outputLogFormatter = function(log) {
 */
 var inputPostFormatter = function(post) {
 
-    post.payload = utils.toHex(post.payload);
+    // post.payload = utils.toHex(post.payload);
     post.ttl = utils.fromDecimal(post.ttl);
     post.workToProve = utils.fromDecimal(post.workToProve);
     post.priority = utils.fromDecimal(post.priority);
@@ -3739,7 +3832,8 @@ var inputPostFormatter = function(post) {
 
     // format the following options
     post.topics = post.topics.map(function(topic){
-        return utils.fromUtf8(topic);
+        // convert only if not hex
+        return (topic.indexOf('0x') === 0) ? topic : utils.fromUtf8(topic);
     });
 
     return post; 
@@ -3758,19 +3852,19 @@ var outputPostFormatter = function(post){
     post.sent = utils.toDecimal(post.sent);
     post.ttl = utils.toDecimal(post.ttl);
     post.workProved = utils.toDecimal(post.workProved);
-    post.payloadRaw = post.payload;
-    post.payload = utils.toUtf8(post.payload);
+    // post.payloadRaw = post.payload;
+    // post.payload = utils.toAscii(post.payload);
 
-    if (utils.isJson(post.payload)) {
-        post.payload = JSON.parse(post.payload);
-    }
+    // if (utils.isJson(post.payload)) {
+    //     post.payload = JSON.parse(post.payload);
+    // }
 
     // format the following options
     if (!post.topics) {
         post.topics = [];
     }
     post.topics = post.topics.map(function(topic){
-        return utils.toUtf8(topic);
+        return utils.toAscii(topic);
     });
 
     return post;
@@ -3846,8 +3940,8 @@ var sha3 = require('../utils/sha3');
 /**
  * This prototype should be used to call/sendTransaction to solidity functions
  */
-var SolidityFunction = function (web3, json, address) {
-    this._web3 = web3;
+var SolidityFunction = function (eth, json, address) {
+    this._eth = eth;
     this._inputTypes = json.inputs.map(function (i) {
         return i.type;
     });
@@ -3927,12 +4021,12 @@ SolidityFunction.prototype.call = function () {
 
 
     if (!callback) {
-        var output = this._web3.eth.call(payload, defaultBlock);
+        var output = this._eth.call(payload, defaultBlock);
         return this.unpackOutput(output);
     } 
         
     var self = this;
-    this._web3.eth.call(payload, defaultBlock, function (error, output) {
+    this._eth.call(payload, defaultBlock, function (error, output) {
         callback(error, self.unpackOutput(output));
     });
 };
@@ -3941,7 +4035,6 @@ SolidityFunction.prototype.call = function () {
  * Should be used to sendTransaction to solidity function
  *
  * @method sendTransaction
- * @param {Object} options
  */
 SolidityFunction.prototype.sendTransaction = function () {
     var args = Array.prototype.slice.call(arguments).filter(function (a) {return a !== undefined; });
@@ -3949,17 +4042,16 @@ SolidityFunction.prototype.sendTransaction = function () {
     var payload = this.toPayload(args);
 
     if (!callback) {
-        return this._web3.eth.sendTransaction(payload);
+        return this._eth.sendTransaction(payload);
     }
 
-    this._web3.eth.sendTransaction(payload, callback);
+    this._eth.sendTransaction(payload, callback);
 };
 
 /**
  * Should be used to estimateGas of solidity function
  *
  * @method estimateGas
- * @param {Object} options
  */
 SolidityFunction.prototype.estimateGas = function () {
     var args = Array.prototype.slice.call(arguments);
@@ -3967,10 +4059,23 @@ SolidityFunction.prototype.estimateGas = function () {
     var payload = this.toPayload(args);
 
     if (!callback) {
-        return this._web3.eth.estimateGas(payload);
+        return this._eth.estimateGas(payload);
     }
 
-    this._web3.eth.estimateGas(payload, callback);
+    this._eth.estimateGas(payload, callback);
+};
+
+/**
+ * Return the encoded data of the call
+ *
+ * @method getData
+ * @return {String} the encoded data
+ */
+SolidityFunction.prototype.getData = function () {
+    var args = Array.prototype.slice.call(arguments);
+    var payload = this.toPayload(args);
+
+    return payload.data;
 };
 
 /**
@@ -4042,6 +4147,7 @@ SolidityFunction.prototype.attachToContract = function (contract) {
     execute.call = this.call.bind(this);
     execute.sendTransaction = this.sendTransaction.bind(this);
     execute.estimateGas = this.estimateGas.bind(this);
+    execute.getData = this.getData.bind(this);
     var displayName = this.displayName();
     if (!contract[displayName]) {
         contract[displayName] = execute;
@@ -4514,10 +4620,10 @@ IpcProvider.prototype._parseResponse = function(data) {
     
     // DE-CHUNKER
     var dechunkedData = data
-        .replace(/\}\{/g,'}|--|{') // }{
-        .replace(/\}\]\[\{/g,'}]|--|[{') // }][{
-        .replace(/\}\[\{/g,'}|--|[{') // }[{
-        .replace(/\}\]\{/g,'}]|--|{') // }]{
+        .replace(/\}[\n\r]?\{/g,'}|--|{') // }{
+        .replace(/\}\][\n\r]?\[\{/g,'}]|--|[{') // }][{
+        .replace(/\}[\n\r]?\[\{/g,'}|--|[{') // }[{
+        .replace(/\}\][\n\r]?\{/g,'}]|--|{') // }]{
         .split('|--|');
 
     dechunkedData.forEach(function(data){
@@ -4538,7 +4644,7 @@ IpcProvider.prototype._parseResponse = function(data) {
             // start timeout to cancel all requests
             clearTimeout(_this.lastChunkTimeout);
             _this.lastChunkTimeout = setTimeout(function(){
-                _this.timeout();
+                _this._timeout();
                 throw errors.InvalidResponse(data);
             }, 1000 * 15);
 
@@ -5026,24 +5132,23 @@ var uncleCountCall = function (args) {
 };
 
 function Eth(web3) {
-    this.web3 = web3;
+    this._requestManager = web3._requestManager;
 
     var self = this;
 
     methods().forEach(function(method) { 
         method.attachToObject(self);
-        method.setRequestManager(web3._requestManager);
+        method.setRequestManager(self._requestManager);
     });
 
     properties().forEach(function(p) { 
         p.attachToObject(self);
-        p.setRequestManager(web3._requestManager);
+        p.setRequestManager(self._requestManager);
     });
 
-    this.namereg = this.contract(namereg.global.abi).at(namereg.global.address);
-    this.icapNamereg = this.contract(namereg.icap.abi).at(namereg.icap.address);
+
     this.iban = Iban;
-    this.sendIBANTransaction = transfer.bind(null, web3);
+    this.sendIBANTransaction = transfer.bind(null, this);
 }
 
 Object.defineProperty(Eth.prototype, 'defaultBlock', {
@@ -5172,6 +5277,13 @@ var methods = function () {
         inputFormatter: [formatters.inputTransactionFormatter]
     });
 
+    var sign = new Method({
+        name: 'sign',
+        call: 'eth_sign',
+        params: 2,
+        inputFormatter: [formatters.inputAddressFormatter, null]
+    });
+
     var call = new Method({
         name: 'call',
         call: 'eth_call',
@@ -5234,6 +5346,7 @@ var methods = function () {
         estimateGas,
         sendRawTransaction,
         sendTransaction,
+        sign,
         compileSolidity,
         compileLLL,
         compileSerpent,
@@ -5281,22 +5394,30 @@ var properties = function () {
 };
 
 Eth.prototype.contract = function (abi) {
-    var factory = new Contract(this.web3, abi);
+    var factory = new Contract(this, abi);
     return factory;
 };
 
 Eth.prototype.filter = function (fil, callback) {
-    return new Filter(this.web3, fil, watches.eth(), formatters.outputLogFormatter, callback);
+    return new Filter(this._requestManager, fil, watches.eth(), formatters.outputLogFormatter, callback);
+};
+
+Eth.prototype.namereg = function () {
+    return this.contract(namereg.global.abi).at(namereg.global.address);
+};
+
+Eth.prototype.icapNamereg = function () {
+    return this.contract(namereg.icap.abi).at(namereg.icap.address);
 };
 
 Eth.prototype.isSyncing = function (callback) {
-    return new IsSyncing(this.web3, callback);
+    return new IsSyncing(this._requestManager, callback);
 };
 
 module.exports = Eth;
 
 
-},{"../../utils/config":18,"../../utils/utils":20,"../contract":25,"../filter":29,"../formatters":30,"../iban":33,"../method":36,"../namereg":42,"../property":43,"../syncing":46,"../transfer":47,"./watches":41}],39:[function(require,module,exports){
+},{"../../utils/config":18,"../../utils/utils":20,"../contract":25,"../filter":29,"../formatters":30,"../iban":33,"../method":36,"../namereg":43,"../property":44,"../syncing":47,"../transfer":48,"./watches":42}],39:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5350,7 +5471,85 @@ var properties = function () {
 
 module.exports = Net;
 
-},{"../../utils/utils":20,"../property":43}],40:[function(require,module,exports){
+},{"../../utils/utils":20,"../property":44}],40:[function(require,module,exports){
+/*
+    This file is part of web3.js.
+
+    web3.js is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    web3.js is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with web3.js.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/**
+ * @file eth.js
+ * @author Marek Kotewicz <marek@ethdev.com>
+ * @author Fabian Vogelsteller <fabian@ethdev.com>
+ * @date 2015
+ */
+
+"use strict";
+
+var Method = require('../method');
+var Property = require('../property');
+
+function Personal(web3) {
+    this._requestManager = web3._requestManager;
+
+    var self = this;
+
+    methods().forEach(function(method) {
+        method.attachToObject(self);
+        method.setRequestManager(self._requestManager);
+    });
+
+    properties().forEach(function(p) {
+        p.attachToObject(self);
+        p.setRequestManager(self._requestManager);
+    });
+}
+
+var methods = function () {
+    var newAccount = new Method({
+        name: 'newAccount',
+        call: 'personal_newAccount',
+        params: 1,
+        inputFormatter: [null]
+    });
+
+    var unlockAccount = new Method({
+        name: 'unlockAccount',
+        call: 'personal_unlockAccount',
+        params: 3,
+        inputFormatter: [null, null, null]
+    });
+
+    return [
+        newAccount,
+        unlockAccount
+    ];
+};
+
+var properties = function () {
+    return [
+        new Property({
+            name: 'listAccounts',
+            getter: 'personal_listAccounts'
+        })
+    ];
+};
+
+
+module.exports = Personal;
+
+},{"../method":36,"../property":44}],41:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5379,18 +5578,18 @@ var Filter = require('../filter');
 var watches = require('./watches');
 
 var Shh = function (web3) {
-    this.web3 = web3;
+    this._requestManager = web3._requestManager;
 
     var self = this;
 
     methods().forEach(function(method) { 
         method.attachToObject(self);
-        method.setRequestManager(web3._requestManager);
+        method.setRequestManager(self._requestManager);
     });
 };
 
 Shh.prototype.filter = function (fil, callback) {
-    return new Filter(this.web3, fil, watches.shh(), formatters.outputPostFormatter, callback);
+    return new Filter(this._requestManager, fil, watches.shh(), formatters.outputPostFormatter, callback);
 };
 
 var methods = function () { 
@@ -5438,7 +5637,7 @@ var methods = function () {
 module.exports = Shh;
 
 
-},{"../filter":29,"../formatters":30,"../method":36,"./watches":41}],41:[function(require,module,exports){
+},{"../filter":29,"../formatters":30,"../method":36,"./watches":42}],42:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5554,7 +5753,7 @@ module.exports = {
 };
 
 
-},{"../method":36}],42:[function(require,module,exports){
+},{"../method":36}],43:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5595,7 +5794,7 @@ module.exports = {
 };
 
 
-},{"../contracts/GlobalRegistrar.json":1,"../contracts/ICAPRegistrar.json":2}],43:[function(require,module,exports){
+},{"../contracts/GlobalRegistrar.json":1,"../contracts/ICAPRegistrar.json":2}],44:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -5679,7 +5878,8 @@ Property.prototype.extractCallback = function (args) {
  */
 Property.prototype.attachToObject = function (obj) {
     var proto = {
-        get: this.buildGet() 
+        get: this.buildGet(),
+        enumerable: true 
     };
 
     var names = this.name.split('.');
@@ -5740,7 +5940,7 @@ Property.prototype.request = function () {
 module.exports = Property;
 
 
-},{"../utils/utils":20}],44:[function(require,module,exports){
+},{"../utils/utils":20}],45:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6007,7 +6207,7 @@ RequestManager.prototype.poll = function () {
 module.exports = RequestManager;
 
 
-},{"../utils/config":18,"../utils/utils":20,"./errors":26,"./jsonrpc":35}],45:[function(require,module,exports){
+},{"../utils/config":18,"../utils/utils":20,"./errors":26,"./jsonrpc":35}],46:[function(require,module,exports){
 
 
 var Settings = function () {
@@ -6018,7 +6218,7 @@ var Settings = function () {
 module.exports = Settings;
 
 
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6061,7 +6261,7 @@ var pollSyncing = function(self) {
             });
         }
 
-        if(utils.isObject(sync))
+        if(utils.isObject(sync) && sync.startingBlock)
             sync = formatters.outputSyncingFormatter(sync);
 
         self.callbacks.forEach(function (callback) {
@@ -6088,9 +6288,8 @@ var pollSyncing = function(self) {
 
 };
 
-var IsSyncing = function (web3, callback) {
-    this._web3 = web3;
-    this.requestManager = web3._requestManager;
+var IsSyncing = function (requestManager, callback) {
+    this.requestManager = requestManager;
     this.pollId = 'syncPoll_'+ count++;
     this.callbacks = [];
     this.addCallback(callback);
@@ -6107,14 +6306,14 @@ IsSyncing.prototype.addCallback = function (callback) {
 };
 
 IsSyncing.prototype.stopWatching = function () {
-    this._web3._requestManager.stopPolling(this.pollId);
+    this.requestManager.stopPolling(this.pollId);
     this.callbacks = [];
 };
 
 module.exports = IsSyncing;
 
 
-},{"../utils/utils":20,"./formatters":30}],47:[function(require,module,exports){
+},{"../utils/utils":20,"./formatters":30}],48:[function(require,module,exports){
 /*
     This file is part of web3.js.
 
@@ -6149,23 +6348,23 @@ var exchangeAbi = require('../contracts/SmartExchange.json');
  * @param {Value} value to be tranfered
  * @param {Function} callback, callback
  */
-var transfer = function (web3, from, to, value, callback) {
+var transfer = function (eth, from, to, value, callback) {
     var iban = new Iban(to); 
     if (!iban.isValid()) {
         throw new Error('invalid iban address');
     }
 
     if (iban.isDirect()) {
-        return transferToAddress(web3, from, iban.address(), value, callback);
+        return transferToAddress(eth, from, iban.address(), value, callback);
     }
     
     if (!callback) {
-        var address = web3.eth.icapNamereg.addr(iban.institution());
-        return deposit(web3, from, address, value, iban.client());
+        var address = eth.icapNamereg().addr(iban.institution());
+        return deposit(eth, from, address, value, iban.client());
     }
 
-    web3.eth.icapNamereg.addr(iban.institution(), function (err, address) {
-        return deposit(web3, from, address, value, iban.client(), callback);
+    eth.icapNamereg().addr(iban.institution(), function (err, address) {
+        return deposit(eth, from, address, value, iban.client(), callback);
     });
     
 };
@@ -6179,8 +6378,8 @@ var transfer = function (web3, from, to, value, callback) {
  * @param {Value} value to be tranfered
  * @param {Function} callback, callback
  */
-var transferToAddress = function (web3, from, to, value, callback) {
-    return web3.eth.sendTransaction({
+var transferToAddress = function (eth, from, to, value, callback) {
+    return eth.sendTransaction({
         address: to,
         from: from,
         value: value
@@ -6197,9 +6396,9 @@ var transferToAddress = function (web3, from, to, value, callback) {
  * @param {String} client unique identifier
  * @param {Function} callback, callback
  */
-var deposit = function (web3, from, to, value, client, callback) {
+var deposit = function (eth, from, to, value, client, callback) {
     var abi = exchangeAbi;
-    return web3.eth.contract(abi).at(to).deposit(client, {
+    return eth.contract(abi).at(to).deposit(client, {
         from: from,
         value: value
     }, callback);
@@ -6208,9 +6407,9 @@ var deposit = function (web3, from, to, value, client, callback) {
 module.exports = transfer;
 
 
-},{"../contracts/SmartExchange.json":3,"./iban":33}],48:[function(require,module,exports){
+},{"../contracts/SmartExchange.json":3,"./iban":33}],49:[function(require,module,exports){
 
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -6438,7 +6637,7 @@ module.exports = transfer;
 	return CryptoJS.AES;
 
 }));
-},{"./cipher-core":50,"./core":51,"./enc-base64":52,"./evpkdf":54,"./md5":59}],50:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52,"./enc-base64":53,"./evpkdf":55,"./md5":60}],51:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -7314,7 +7513,7 @@ module.exports = transfer;
 
 
 }));
-},{"./core":51}],51:[function(require,module,exports){
+},{"./core":52}],52:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8057,7 +8256,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8181,7 +8380,7 @@ module.exports = transfer;
 	return CryptoJS.enc.Base64;
 
 }));
-},{"./core":51}],53:[function(require,module,exports){
+},{"./core":52}],54:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8331,7 +8530,7 @@ module.exports = transfer;
 	return CryptoJS.enc.Utf16;
 
 }));
-},{"./core":51}],54:[function(require,module,exports){
+},{"./core":52}],55:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8464,7 +8663,7 @@ module.exports = transfer;
 	return CryptoJS.EvpKDF;
 
 }));
-},{"./core":51,"./hmac":56,"./sha1":75}],55:[function(require,module,exports){
+},{"./core":52,"./hmac":57,"./sha1":76}],56:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8531,7 +8730,7 @@ module.exports = transfer;
 	return CryptoJS.format.Hex;
 
 }));
-},{"./cipher-core":50,"./core":51}],56:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],57:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8675,7 +8874,7 @@ module.exports = transfer;
 
 
 }));
-},{"./core":51}],57:[function(require,module,exports){
+},{"./core":52}],58:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8694,7 +8893,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{"./aes":49,"./cipher-core":50,"./core":51,"./enc-base64":52,"./enc-utf16":53,"./evpkdf":54,"./format-hex":55,"./hmac":56,"./lib-typedarrays":58,"./md5":59,"./mode-cfb":60,"./mode-ctr":62,"./mode-ctr-gladman":61,"./mode-ecb":63,"./mode-ofb":64,"./pad-ansix923":65,"./pad-iso10126":66,"./pad-iso97971":67,"./pad-nopadding":68,"./pad-zeropadding":69,"./pbkdf2":70,"./rabbit":72,"./rabbit-legacy":71,"./rc4":73,"./ripemd160":74,"./sha1":75,"./sha224":76,"./sha256":77,"./sha3":78,"./sha384":79,"./sha512":80,"./tripledes":81,"./x64-core":82}],58:[function(require,module,exports){
+},{"./aes":50,"./cipher-core":51,"./core":52,"./enc-base64":53,"./enc-utf16":54,"./evpkdf":55,"./format-hex":56,"./hmac":57,"./lib-typedarrays":59,"./md5":60,"./mode-cfb":61,"./mode-ctr":63,"./mode-ctr-gladman":62,"./mode-ecb":64,"./mode-ofb":65,"./pad-ansix923":66,"./pad-iso10126":67,"./pad-iso97971":68,"./pad-nopadding":69,"./pad-zeropadding":70,"./pbkdf2":71,"./rabbit":73,"./rabbit-legacy":72,"./rc4":74,"./ripemd160":75,"./sha1":76,"./sha224":77,"./sha256":78,"./sha3":79,"./sha384":80,"./sha512":81,"./tripledes":82,"./x64-core":83}],59:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -8771,7 +8970,7 @@ module.exports = transfer;
 	return CryptoJS.lib.WordArray;
 
 }));
-},{"./core":51}],59:[function(require,module,exports){
+},{"./core":52}],60:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9040,7 +9239,7 @@ module.exports = transfer;
 	return CryptoJS.MD5;
 
 }));
-},{"./core":51}],60:[function(require,module,exports){
+},{"./core":52}],61:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9119,7 +9318,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CFB;
 
 }));
-},{"./cipher-core":50,"./core":51}],61:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],62:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9236,7 +9435,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CTRGladman;
 
 }));
-},{"./cipher-core":50,"./core":51}],62:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],63:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9295,7 +9494,7 @@ module.exports = transfer;
 	return CryptoJS.mode.CTR;
 
 }));
-},{"./cipher-core":50,"./core":51}],63:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],64:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9336,7 +9535,7 @@ module.exports = transfer;
 	return CryptoJS.mode.ECB;
 
 }));
-},{"./cipher-core":50,"./core":51}],64:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],65:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9391,7 +9590,7 @@ module.exports = transfer;
 	return CryptoJS.mode.OFB;
 
 }));
-},{"./cipher-core":50,"./core":51}],65:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],66:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9441,7 +9640,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Ansix923;
 
 }));
-},{"./cipher-core":50,"./core":51}],66:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],67:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9486,7 +9685,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Iso10126;
 
 }));
-},{"./cipher-core":50,"./core":51}],67:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],68:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9527,7 +9726,7 @@ module.exports = transfer;
 	return CryptoJS.pad.Iso97971;
 
 }));
-},{"./cipher-core":50,"./core":51}],68:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],69:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9558,7 +9757,7 @@ module.exports = transfer;
 	return CryptoJS.pad.NoPadding;
 
 }));
-},{"./cipher-core":50,"./core":51}],69:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],70:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9604,7 +9803,7 @@ module.exports = transfer;
 	return CryptoJS.pad.ZeroPadding;
 
 }));
-},{"./cipher-core":50,"./core":51}],70:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52}],71:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9750,7 +9949,7 @@ module.exports = transfer;
 	return CryptoJS.PBKDF2;
 
 }));
-},{"./core":51,"./hmac":56,"./sha1":75}],71:[function(require,module,exports){
+},{"./core":52,"./hmac":57,"./sha1":76}],72:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -9941,7 +10140,7 @@ module.exports = transfer;
 	return CryptoJS.RabbitLegacy;
 
 }));
-},{"./cipher-core":50,"./core":51,"./enc-base64":52,"./evpkdf":54,"./md5":59}],72:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52,"./enc-base64":53,"./evpkdf":55,"./md5":60}],73:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10134,7 +10333,7 @@ module.exports = transfer;
 	return CryptoJS.Rabbit;
 
 }));
-},{"./cipher-core":50,"./core":51,"./enc-base64":52,"./evpkdf":54,"./md5":59}],73:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52,"./enc-base64":53,"./evpkdf":55,"./md5":60}],74:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10274,7 +10473,7 @@ module.exports = transfer;
 	return CryptoJS.RC4;
 
 }));
-},{"./cipher-core":50,"./core":51,"./enc-base64":52,"./evpkdf":54,"./md5":59}],74:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52,"./enc-base64":53,"./evpkdf":55,"./md5":60}],75:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10542,7 +10741,7 @@ module.exports = transfer;
 	return CryptoJS.RIPEMD160;
 
 }));
-},{"./core":51}],75:[function(require,module,exports){
+},{"./core":52}],76:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10693,7 +10892,7 @@ module.exports = transfer;
 	return CryptoJS.SHA1;
 
 }));
-},{"./core":51}],76:[function(require,module,exports){
+},{"./core":52}],77:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10774,7 +10973,7 @@ module.exports = transfer;
 	return CryptoJS.SHA224;
 
 }));
-},{"./core":51,"./sha256":77}],77:[function(require,module,exports){
+},{"./core":52,"./sha256":78}],78:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -10974,7 +11173,7 @@ module.exports = transfer;
 	return CryptoJS.SHA256;
 
 }));
-},{"./core":51}],78:[function(require,module,exports){
+},{"./core":52}],79:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11298,7 +11497,7 @@ module.exports = transfer;
 	return CryptoJS.SHA3;
 
 }));
-},{"./core":51,"./x64-core":82}],79:[function(require,module,exports){
+},{"./core":52,"./x64-core":83}],80:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11382,7 +11581,7 @@ module.exports = transfer;
 	return CryptoJS.SHA384;
 
 }));
-},{"./core":51,"./sha512":80,"./x64-core":82}],80:[function(require,module,exports){
+},{"./core":52,"./sha512":81,"./x64-core":83}],81:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -11706,7 +11905,7 @@ module.exports = transfer;
 	return CryptoJS.SHA512;
 
 }));
-},{"./core":51,"./x64-core":82}],81:[function(require,module,exports){
+},{"./core":52,"./x64-core":83}],82:[function(require,module,exports){
 ;(function (root, factory, undef) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -12477,7 +12676,7 @@ module.exports = transfer;
 	return CryptoJS.TripleDES;
 
 }));
-},{"./cipher-core":50,"./core":51,"./enc-base64":52,"./evpkdf":54,"./md5":59}],82:[function(require,module,exports){
+},{"./cipher-core":51,"./core":52,"./enc-base64":53,"./evpkdf":55,"./md5":60}],83:[function(require,module,exports){
 ;(function (root, factory) {
 	if (typeof exports === "object") {
 		// CommonJS
@@ -12782,7 +12981,7 @@ module.exports = transfer;
 	return CryptoJS;
 
 }));
-},{"./core":51}],83:[function(require,module,exports){
+},{"./core":52}],84:[function(require,module,exports){
 /*! https://mths.be/utf8js v2.0.0 by @mathias */
 ;(function(root) {
 
@@ -15713,7 +15912,7 @@ module.exports = transfer;
     }
 })(this);
 
-},{"crypto":48}],"web3":[function(require,module,exports){
+},{"crypto":49}],"web3":[function(require,module,exports){
 var Web3 = require('./lib/web3');
 
 // dont override global variable

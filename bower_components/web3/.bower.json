@@ -1,7 +1,7 @@
 {
   "name": "web3",
   "namespace": "ethereum",
-  "version": "0.14.0",
+  "version": "0.15.3",
   "description": "Ethereum Compatible JavaScript API",
   "main": [
     "./dist/web3.js",
@@ -59,13 +59,13 @@
     "index.js",
     "**/*.txt"
   ],
-  "_release": "0.14.0",
+  "_release": "0.15.3",
   "_resolution": {
     "type": "version",
-    "tag": "0.14.0",
-    "commit": "b546d216d661f66f40be4769bbf9cd30edd484f9"
+    "tag": "0.15.3",
+    "commit": "fc9e96473a4100e1b5465cd001ff8ece6c097563"
   },
   "_source": "https://github.com/ethereum/ethereum.js.git",
-  "_target": "~0.14.0",
+  "_target": "~0.15.0",
   "_originalSource": "web3"
 }
