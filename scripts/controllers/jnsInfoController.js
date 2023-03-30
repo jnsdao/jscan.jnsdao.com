@@ -3,117 +3,144 @@ angular.module('ethExplorer')
 
 		var web3 = $rootScope.web3;
 
-		$scope.mintJNS = function (jnsId) {
+		//////////////////////////////////////////////////////////////////////////////
+		// write functionalities in page scope                                      //
+		//////////////////////////////////////////////////////////////////////////////
 
-			if (jnsId.search('.j$') < 0) {
-				// TODO more validation?
-				alert('错误：' + jnsId + ' 不是有效的JNS名称！');
-			} else {
+		//refactored-20230330
+		$scope.mintJNS = function (jnsId) {
+			const DIALOG_TITLE = '铸造jns';
+
+			// 1. jnsId必须以.j结尾；2. 暂时只允许大小写字母数字和中横线
+			if (jnsId.search('.j$') > 0) { 
 				// remove trailing .j (for correct call to contract)
 				var namej = jnsId.slice(0, jnsId.length - 2); 
-				console.log('about to mint JNS name: ' + namej + '.j');
+				if (namej.search("^([a-zA-Z0-9]|-)+$") == 0) {
+					console.log('about to mint JNS name: ' + namej + '.j');
 
-				if (window.ethereum && window.ethereum.isConnected()) {
-					// hacking...
-					web3.setProvider(window.ethereum);
-					web3.eth.defaultAccount = web3.eth.accounts[0];
+					if (window.ethereum && window.ethereum.isConnected()) {
+						web3.setProvider(window.ethereum);
+						const connectedAccount = window.ethereum.selectedAddress;
 
-					if (web3.eth.defaultAccount == this.jnsContractOwner) {
-						var jns_contract = web3.eth.contract(jns_ABI).at(jns_contract_address);
-						jns_contract.claim(namej,
-							function (err, result) {
-								if (err) {
-									console.log(err);
-									//alert('出错啦：' + err.message);
+						if (connectedAccount.toLowerCase() == this.jnsContractOwner.toLowerCase()) {
+							const jns_contract = new web3.eth.Contract(jns_ABI, jns_contract_address);
+							jns_contract.methods.claim(namej).estimateGas({from: connectedAccount}, (err, gas) => {
+								if (!err) {
+									jns_contract.methods.claim(namej).send({from: connectedAccount}, handlerShowTx(DIALOG_TITLE))
+										.then(handlerShowRct(DIALOG_TITLE));
+								} else {
+									dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
 								}
-							}); // no need to send(), amazing!
-
+							});
+						} else {
+							dialogShowTxt(DIALOG_TITLE, '你没有JNS的铸造权限');
+						}
+					} else {
+						dialogShowTxt(DIALOG_TITLE, '错误：没有web3环境，无法完成操作');
 					}
+				} else {
+					dialogShowTxt(DIALOG_TITLE, '错误：JNS名称 ' + jnsId + ' 只可以包含大小写字母、数字以及中横线');
 				}
-
+			} else {
+				dialogShowTxt(DIALOG_TITLE, '错误：JNS名称 ' + jnsId + ' 必须以.j结尾');
 			}
 			
 		}
 
+		//refactored-20230330
 		$scope.bind = function ()
 		{
+			const DIALOG_TITLE = 'bind上链操作';
+
 			if (window.ethereum && window.ethereum.isConnected()) {
-				// hacking...
 				web3.setProvider(window.ethereum);
-				web3.eth.defaultAccount = web3.eth.accounts[0];
+				const connectedAccount = window.ethereum.selectedAddress;
 
-				if (web3.eth.defaultAccount.toLowerCase() == this.ownerAddress.toLowerCase()) {
-					var jns_contract = web3.eth.contract(jns_ABI).at(jns_contract_address);
-					jns_contract.bind(this.nftId,
-						function (err, result) {
-							if (err) {
-								console.log(err);
-								alert('出错啦：' + err.message);
-							}
-						}); // no need to send(), amazing!
-
+				if (connectedAccount.toLowerCase() == this.ownerAddress.toLowerCase()) {
+					var jns_contract = new web3.eth.Contract(jns_ABI, jns_contract_address);
+					jns_contract.methods.bind(this.nftId).estimateGas({ from: connectedAccount }, (err, gas) => {
+						if (!err) {
+							jns_contract.methods.bind(this.nftId).send({ from: connectedAccount }, handlerShowTx(DIALOG_TITLE))
+								.then(handlerShowRct(DIALOG_TITLE));
+						} else {
+							dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
+						}
+					});
 				} else {
-					this.hexdata = '向合约地址发送数据 ' + this.bindCalldata + ' 进行绑定';
+					dialogShowTxt(DIALOG_TITLE, '你不是 ' + this.jnsName + '.j 的所有者');
 				}
 			} else {
-				this.hexdata = '向合约地址发送数据 ' + this.bindCalldata + ' 进行绑定';
+				dialogShowTxt(DIALOG_TITLE, '向合约地址 ' + jns_contract_address + ' 发送数据 ' + this.bindCalldata + ' 绑定');
 			}
 
 		}
 
+		//refactored-20230330
 		$scope.unbind = function ()
 		{
+			const DIALOG_TITLE = 'unbind上链操作';
+
 			if (window.ethereum && window.ethereum.isConnected()) {
-				// hacking...
-				web3.setProvider(window.ethereum);
-				web3.eth.defaultAccount = web3.eth.accounts[0];
+				web3.setProvider(window.ethereum); //switch to the injected metamask provider
+				const connectedAccount = window.ethereum.selectedAddress;
 
-				if (web3.eth.defaultAccount.toLowerCase() == this.ownerAddress.toLowerCase()) {
-					var jns_contract = web3.eth.contract(jns_ABI).at(jns_contract_address);
-					jns_contract.unbind(this.nftId,
-						function (err, result) {
-							if (err) {
-								console.log(err);
-								alert('出错啦：' + err.message);
-							}
-						}); // no need to send(), amazing!
-
+				if (connectedAccount.toLowerCase() == this.ownerAddress.toLowerCase()) {
+					var jns_contract = new web3.eth.Contract(jns_ABI, jns_contract_address);
+					jns_contract.methods.unbind(this.nftId).estimateGas({ from: connectedAccount }, (err, gas) => {
+						if (!err) {
+							jns_contract.methods.unbind(this.nftId).send({ from: connectedAccount }, handlerShowTx(DIALOG_TITLE))
+								.then(handlerShowRct(DIALOG_TITLE));
+						} else {
+							dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
+						}
+					});
 				} else {
-					this.hexdata = '向合约地址发送数据 ' + this.unbindCalldata + ' 解除绑定';
+					dialogShowTxt(DIALOG_TITLE, '你不是 ' + this.jnsName + '.j 的所有者');
 				}
 			} else {
-				this.hexdata = '向合约地址发送数据 ' + this.unbindCalldata + ' 解除绑定';
+				dialogShowTxt(DIALOG_TITLE, '向合约地址 ' + jns_contract_address + ' 发送数据 ' + this.unbindCalldata + ' 解除绑定');
 			}
 
 		}
 
+		//refactored-20230330
 		$scope.give = function ()
 		{
-			var toAddress = prompt("请输入接收地址：", "0x");
-			if (toAddress && web3.isAddress(toAddress)) { // TODO more validation
-				var nftId = this.nftId; // this. just works! cool.
-				var fromAddress = this.ownerAddress;
-				console.log(`will give jns #${nftId} from ${fromAddress} to: ${toAddress}`);
-				if (window.ethereum && window.ethereum.isConnected()) {
-					// hacking...
-					web3.setProvider(window.ethereum);
-					web3.eth.defaultAccount = web3.eth.accounts[0];
+			const DIALOG_TITLE = '赠予';
 
-					var jns_contract = web3.eth.contract(jns_ABI).at(jns_contract_address);
-					jns_contract.safeTransferFrom(fromAddress, toAddress, nftId,
-						function (err, result) {
-							if (err) {
-								console.log(err);
-								alert('出错啦：' + err.message);
+			var toAddress = prompt("请输入接收地址：", "0x"); // TODO use h5 dialog box for better compatibility
+			if (toAddress && web3.utils.isAddress(toAddress)) {
+				const nftId = this.nftId; // this. just works! cool.
+				const fromAddress = this.ownerAddress;
+				console.log(`will give jns: #${nftId} from: ${fromAddress} to: ${toAddress}`);
+				if (window.ethereum && window.ethereum.isConnected()) {
+					web3.setProvider(window.ethereum);
+					const connectedAccount = window.ethereum.selectedAddress;
+
+					var jns_contract = new web3.eth.Contract(jns_ABI, jns_contract_address);
+					jns_contract.methods.safeTransferFrom(fromAddress, toAddress, nftId)
+						.estimateGas({ from: connectedAccount }, (err, gas) => {
+							if (!err) {
+								jns_contract.methods.safeTransferFrom(fromAddress, toAddress, nftId)
+									.send({ from: connectedAccount }, handlerShowTx(DIALOG_TITLE))
+									.then(handlerShowRct(DIALOG_TITLE));
+							} else {
+								dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
 							}
-						}); // no need to send(), amazing!
+						});
+
+				} else {
+					dialogShowTxt(DIALOG_TITLE, '错误：没有web3环境，无法完成操作');
 				}
 			} else {
-				alert(`不是有效的地址：${toAddress}`);
+				dialogShowTxt(DIALOG_TITLE, `出错啦：接收地址 ${toAddress} 不是有效的地址`);
 			}
 			
 		}
 
+		//////////////////////////////////////////////////////////////////////////////
+		// read functionalities in page scope                                       //
+		//////////////////////////////////////////////////////////////////////////////
 		$scope.init = function()
 		{
 			$scope.jnsId = $routeParams.jnsId.toLowerCase(); // must in format xxx.j
@@ -168,28 +195,28 @@ angular.module('ethExplorer')
 			function getJNSInfo() {
 				var deferred = $q.defer();
 
-				var jns_contract = web3.eth.contract(jns_ABI).at(jns_contract_address);
+				var jns_contract = new web3.eth.Contract(jns_ABI, jns_contract_address);
 
 				// if showing mint button
-				jns_contract.owner.call(function (err, result) {
+				jns_contract.methods.owner().call(function (err, result) {
 					$scope.chainId = window.ethereum ? window.ethereum.chainId : '';
 					$scope.account = window.ethereum ? window.ethereum.selectedAddress : '';
 					$scope.jnsContractOwner = result.toString();
-					console.log('[addressInfo] chainId: ', $scope.chainId, 'account: ', $scope.account, 'jnsContractOwner: ', $scope.jnsContractOwner);
+					console.log('[jnsinfo addressInfo] chainId: ', $scope.chainId, 'account: ', $scope.account, 'jnsContractOwner: ', $scope.jnsContractOwner);
 					$scope.$apply();
 				});
 
 				// search jns
-				jns_contract._nslookup.call($scope.jnsName, function (error, result) {
+				jns_contract.methods._nslookup($scope.jnsName).call(function (error, result) {
 					if (!error) {
 						var token_id = result.toString();
-						jns_contract.ownerOf.call(token_id, function (error2, result2) {
+						jns_contract.methods.ownerOf(token_id).call(function (error2, result2) {
 							if (!error2) {
 								var owner_addr = result2.toString();
-								jns_contract._bound.call(token_id, function (error3, result3) {
+								jns_contract.methods._bound(token_id).call(function (error3, result3) {
 									if (!error3) {
 										var bound_addr = (result3 == 0)? "未绑定" : ('已绑定 ' + result3.toString());
-										jns_contract.tokenURI.call(token_id, function (error4, result4) {
+										jns_contract.methods.tokenURI(token_id).call(function (error4, result4) {
 											if (!error4) {
 												var img = parseTokenURI(result4.toString()).image;
 
@@ -202,8 +229,8 @@ angular.module('ethExplorer')
 														ownerAddress: owner_addr,
 														boundAddress: bound_addr,
 														logo: img,
-														bindCalldata: jns_contract.bind.getData(token_id),
-														unbindCalldata: jns_contract.unbind.getData(token_id),
+														bindCalldata: jns_contract.methods.bind(token_id).encodeABI(),
+														unbindCalldata: jns_contract.methods.unbind(token_id).encodeABI(),
 														chainId: chainId,
 														account: account,
 													});
@@ -251,7 +278,9 @@ angular.module('ethExplorer')
 
 		$scope.init();
 
-
+		//////////////////////////////////////////////////////////////////////////////
+		// helper functionalities NOT in page scope                                 //
+		//////////////////////////////////////////////////////////////////////////////
 		function hex2a(hexx) {
 			var hex = hexx.toString();//force conversion
 			var str = '';
@@ -273,4 +302,5 @@ angular.module('ethExplorer')
 			}
 			return null;
 		}
+
 	});
