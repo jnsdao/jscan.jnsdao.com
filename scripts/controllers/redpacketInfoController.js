@@ -48,9 +48,7 @@ angular.module('ethExplorer')
 							.then((receipt) => {
 								dialogShowTxt(DIALOG_TITLE, '上链成功！');
 								// let's update the allowance.value
-								$scope.getWJAllowance().then((allowance) => {
-									$scope.wjAllowance = allowance;
-								});
+								$scope.updateWJAllowance();
 							});
 					} else {
 						dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
@@ -116,6 +114,9 @@ angular.module('ethExplorer')
 						localStorage.setItem('RedPacket' + n + 'Quantity', quantity);
 						localStorage.setItem('TotalRedPackets', n + 1);
 					}
+
+					// update the allowance value
+					$scope.updateWJAllowance();
 
 					// show info of redpacket for copying to clipboard
 					const newpacketCopyUrl = $location.absUrl() + '/' + newpacketId;
@@ -186,29 +187,6 @@ angular.module('ethExplorer')
 		//////////////////////////////////////////////////////////////////////////////
 		// read functionalities in page scope                                       //
 		//////////////////////////////////////////////////////////////////////////////
-		$scope.getWJAllowance = function () 
-		{
-			var deferred = $q.defer();
-
-			if ($scope.connectedToJ() && $scope.account) {
-				const wj_contract = new web3.eth.Contract(wj_ABI, wj_contract_address);
-				wj_contract.methods.allowance($scope.account, redpacket_contract_address)
-					.call(function (err, allowance) {
-						if (!err) {
-							deferred.resolve({
-								value: web3.utils.fromWei(allowance, 'ether')
-							});
-						} else {
-							deferred.reject(err);
-						}
-					});
-			} else {
-				deferred.resolve(null);
-			}
-
-			return deferred.promise;
-		}
-
 		$scope.init = function()
 		{
 			$scope.redpacketId = $routeParams.redpacketId; // must in format 0x...
@@ -219,13 +197,12 @@ angular.module('ethExplorer')
 
 			$scope.connectedToJ = () => { return $scope.chainId === '0xe52' }; //use closure for responsiveness
 
-			// used for data-ng-if to display WJ allowance in a responsive way
 			$scope.updateWJAllowance = () => {
-				$scope.getWJAllowance().then((allowance) => {
+				getWJAllowance().then((allowance) => {
 					$scope.wjAllowance = allowance;
 				});
-				return true;
-			};
+			}; //the closure
+			$scope.updateWJAllowance(); //call it once
 
 			console.log('[redpacketInfo] redpacketId: ', $scope.redpacketId);
 			console.log('[redpacketInfo] wj allowance: ', $scope.wjAllowance);
@@ -254,6 +231,33 @@ angular.module('ethExplorer')
 						});
 					}
 				}
+			}
+
+			function getWJAllowance() {
+				var deferred = $q.defer();
+
+				//if ($scope.connectedToJ() && $scope.account) {
+				if (window.ethereum && window.ethereum.isConnected()) {
+					web3.setProvider(window.ethereum);
+					const connectedAccount = window.ethereum.selectedAddress;
+					console.log('[redpacket > openRedPacket] connectedAccount: ', connectedAccount);
+
+					const wj_contract = new web3.eth.Contract(wj_ABI, wj_contract_address);
+					wj_contract.methods.allowance(connectedAccount, redpacket_contract_address)
+						.call(function (err, allowance) {
+							if (!err) {
+								deferred.resolve(
+									web3.utils.fromWei(allowance, 'ether')
+								);
+							} else {
+								deferred.reject(err);
+							}
+						});
+				} else {
+					deferred.resolve('---');
+				}
+
+				return deferred.promise;
 			}
 
 			function displayRedPacketInfo(redpacketId) {
@@ -333,12 +337,14 @@ angular.module('ethExplorer')
 					console.log("[redpacketInfo] switched to chain id: ", parseInt(chainId, 16));
 					$scope.chainId = chainId;
 					$scope.$apply();
+					$scope.updateWJAllowance();
 				});
 
 				window.ethereum.on('accountsChanged', function (accounts) {
 					console.log("[redpacketInfo] switched to account: ", accounts[0]);
 					$scope.account = accounts[0];
 					$scope.$apply();
+					$scope.updateWJAllowance();
 				});
 
 				window.ethereum
@@ -350,6 +356,7 @@ angular.module('ethExplorer')
 						$scope.account = account;
 						console.log("[redpacketInfo] connected account is: ", account);
 						$scope.$apply()
+						$scope.updateWJAllowance();
 					})
 					.catch((error) => {
 						console.error(`[redpacketInfo] error fetching chainId: ${error.code}: ${error.message}`);
