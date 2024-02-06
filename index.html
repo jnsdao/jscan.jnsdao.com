@@ -16,6 +16,10 @@
 
 	<script>
 		// global helpers
+		function dialogHide() {
+			$('#dialog-warning').modal('hide');
+		}
+
 		function dialogShowTxt(title, content) {
 			$("#warning-title").text(title);
 			$("#warning-content").text(content);
@@ -390,6 +394,7 @@
   <script src="scripts/misc/airdrop.js"></script>
   <script src="scripts/misc/well-known.js"></script>
   <script src="scripts/misc/cryptojunks.nft.js"></script>
+  <script src="scripts/misc/redpacket.js"></script>
 
 <!--Crypto-->
   <script src="scripts/crypto/bech32.js"></script>
@@ -406,6 +411,7 @@
   <script src="scripts/controllers/transactionInfosController.js"></script>
   <script src="scripts/controllers/junksInfoController.js"></script>
   <script src="scripts/controllers/jnsInfoController.js"></script>
+  <script src="scripts/controllers/redpacketInfoController.js"></script>
   <script src="scripts/controllers/jnsVoteInfoController.js"></script>
 
   <!--Services-->
