@@ -138,6 +138,95 @@ angular.module('ethExplorer')
 			
 		}
 
+		$scope.endorseJNSAmountDialog = function() 
+		{
+			const DIALOG_TITLE = '输入打赏金额';
+
+			// init amount input field
+			var radioAmount = document.getElementsByName('jns-endorse-amount');
+
+			for (i = 0; i < radioAmount.length; i++) {
+				if (radioAmount[i].checked && radioAmount[i].value === 'other') {
+					$scope.disableManualInputAmount = false;
+				} else if (radioAmount[i].checked) {
+					$scope.disableManualInputAmount = true;
+				}
+            }
+			
+			$('#dialog-endorsejns-amount').modal({keyboard:false, backdrop:'static'});
+			$('#dialog-endorsejns-amount').modal('show');
+		}
+
+		$scope.endorseJNSConfirmDialog = function() 
+		{
+			const DIALOG_TITLE = '确认打赏金额';
+
+			var endorseAmount = 0;
+			var radioAmount = document.getElementsByName('jns-endorse-amount');
+
+			for (i = 0; i < radioAmount.length; i++) {
+				if (radioAmount[i].checked && radioAmount[i].value === 'other') {
+					endorseAmount = parseFloat($('#jns-endorse-amount-other-input')[0].value);
+				} else if (radioAmount[i].checked) {
+					endorseAmount = parseFloat(radioAmount[i].value);
+				}
+            }
+
+			if (Number.isNaN(endorseAmount) || endorseAmount <= 0 || endorseAmount > 100) {
+				dialogShowTxt(DIALOG_TITLE, '打赏金额须大于0且不超过100 WJ');
+				return;
+			}
+
+			// float number allowed
+			$scope.endorseJNSAmount = endorseAmount;
+			$scope.realBoundAddress = $scope.boundAddress;
+			console.log('[jns] endorseJNSConfirmDialog endorseAmount: ' + endorseAmount);
+
+			$('#dialog-endorsejns-confirm').modal({keyboard:false, backdrop:'static'});
+			$('#dialog-endorsejns-confirm').modal('show');
+		}
+
+		$scope.disableAmountInput = function() 
+		{
+			$scope.disableManualInputAmount = true;
+			$scope.endorseAmountInputValue = ""; 
+			console.log('[jns] disableAmountInput: ' + $scope.disableManualInputAmount);
+		}
+
+		$scope.enableAmountInput = function() 
+		{
+			$scope.disableManualInputAmount = false;
+			console.log('[jns] enableAmountInput: ' + $scope.disableManualInputAmount);
+		}
+
+		$scope.endorseJNSTransfer = function(realBoundAddress, endorseJNSAmount) 
+		{
+			const DIALOG_TITLE = '转移打赏金额';
+			
+			console.log('[jns] endorseJNSTransfer boundAddress: ' + realBoundAddress);
+			console.log('[jns] endorseJNSTransfer endorseJNSAmount: ' + endorseJNSAmount);
+
+			if (window.ethereum && window.ethereum.isConnected()) {
+				web3.setProvider(window.ethereum);
+				const connectedAccount = window.ethereum.selectedAddress;
+
+				const e = web3.utils.toWei(endorseJNSAmount.toString(), 'ether');
+				const wj_contract = new web3.eth.Contract(wj_ABI, wj_contract_address);
+
+				wj_contract.methods.transfer(realBoundAddress, e).estimateGas({from: connectedAccount}, (err, gas) => {
+					if (!err) {
+						wj_contract.methods.transfer(realBoundAddress, e)
+							.send({from: connectedAccount}, handlerShowTx(DIALOG_TITLE))
+							.then((receipt) => {
+								dialogShowTxt(DIALOG_TITLE, '打赏成功！');
+							});
+					} else {
+						dialogShowTxt(DIALOG_TITLE, '错误：无法评估gas：' + err.message); //展示合约逻辑报错
+					}
+				});
+			}
+		}
+
 		//////////////////////////////////////////////////////////////////////////////
 		// read functionalities in page scope                                       //
 		//////////////////////////////////////////////////////////////////////////////
@@ -147,6 +236,8 @@ angular.module('ethExplorer')
 			// pre-process two exceptions: GM.j Nana.j
 			if ($scope.jnsId == "gm.j") $scope.jnsId = "GM.j";
 			if ($scope.jnsId == "nana.j") $scope.jnsId = "Nana.j";
+
+			$scope.connectedToJ = () => { return $scope.chainId === '0xe52' };
 
 			if ($scope.jnsId !== undefined) {
 
@@ -164,6 +255,7 @@ angular.module('ethExplorer')
 					$scope.nftId = result.tokenId;
 					$scope.ownerAddress = result.ownerAddress;
 					$scope.boundAddress = result.boundAddress;
+					$scope.boundAddressTag = result.boundAddressTag;
 					$scope.logo = result.logo;
 					$scope.bindCalldata = result.bindCalldata;
 					$scope.unbindCalldata = result.unbindCalldata;
@@ -173,6 +265,7 @@ angular.module('ethExplorer')
 					$scope.jnsIdError = "该名字不存在";
 				});
 
+				//////////////// listeners for chainId and accountId /////////////////
 				if (window.ethereum) {
 					window.ethereum.on('chainChanged', function (chainId) {
 						console.log("[jns] switched to chain id: ", parseInt(chainId, 16));
@@ -184,6 +277,20 @@ angular.module('ethExplorer')
 						console.log("[jns] switched to account: ", accounts[0]);
 						$scope.account = accounts[0];
 						$scope.$apply();
+					});
+
+					window.ethereum
+					.request({ method: 'eth_chainId' })
+					.then((chainId) => {
+						console.log(`[jns] got chain id: ${parseInt(chainId, 16)}`);
+						$scope.chainId = chainId;
+						const account = window.ethereum.selectedAddress;
+						$scope.account = account;
+						console.log("[jns] connected account is: ", account);
+						$scope.$apply()
+					})
+					.catch((error) => {
+						console.error(`[jns] error fetching chainId: ${error.code}: ${error.message}`);
 					});
 				}
 
@@ -215,7 +322,8 @@ angular.module('ethExplorer')
 								var owner_addr = result2.toString();
 								jns_contract.methods._bound(token_id).call(function (error3, result3) {
 									if (!error3) {
-										var bound_addr = (result3 == 0)? "未绑定" : ('已绑定 ' + result3.toString());
+										var bound_addr = result3.toString();
+										var bound_addr_tag = (result3 == 0)? "未绑定" : ('已绑定 ' + result3.toString());
 										jns_contract.methods.tokenURI(token_id).call(function (error4, result4) {
 											if (!error4) {
 												var img = parseTokenURI(result4.toString()).image;
@@ -228,6 +336,7 @@ angular.module('ethExplorer')
 														tokenId: token_id,
 														ownerAddress: owner_addr,
 														boundAddress: bound_addr,
+														boundAddressTag: bound_addr_tag,
 														logo: img,
 														bindCalldata: jns_contract.methods.bind(token_id).encodeABI(),
 														unbindCalldata: jns_contract.methods.unbind(token_id).encodeABI(),

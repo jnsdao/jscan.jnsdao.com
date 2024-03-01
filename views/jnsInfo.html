@@ -14,7 +14,7 @@
 						<button ng-click="mintJNS(jnsId)">🔨</button>
 					</span>
 
-					<span class="pull-right"><image height="14px" src="{{logo}}"></image> {{boundAddress}}</span>
+					<span class="pull-right"><image height="14px" src="{{logo}}"></image> {{boundAddressTag}}</span>
 				</th>
             </tr>
             </tbody>
@@ -48,12 +48,19 @@
             <tr>
                 <td>绑定地址</td>
                 <td>
-					{{boundAddress}}
+					{{boundAddressTag}}
                 </td>
             </tr>
-			<tr data-ng-if="boundAddress !== undefined && boundAddress !== '未绑定'">
+			<tr data-ng-if="boundAddressTag !== undefined && boundAddressTag !== '未绑定'">
                 <td>数字身份 DID</td>
 				<td><a href="./#/did/{{jnsId}}">{{jnsId}}（点击进入该数字身份DID资料页面）</a></td>
+			</tr>
+            <tr data-ng-if="boundAddressTag !== undefined && boundAddressTag !== '未绑定'">
+                <td>
+                    <button data-ng-disabled="!connectedToJ() || !account" ng-click="endorseJNSAmountDialog()">
+                        <span>打赏</span>
+                    </button>
+                </td>
 			</tr>
 
             </tbody>
@@ -61,3 +68,66 @@
     </div>
 
 </div>
+
+<!-- dialog for input endorse JNS amount -->
+<div id="dialog-endorsejns-amount" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+
+        <!-- Modal content-->
+        <div class="modal-content">
+            <center><div class="modal-header">
+                    <h4 class="modal-title"><span id="">打赏金额</span></h4>
+            </div></center>
+            <div class="modal-body">
+                <code>
+                    <div style="word-break:break-all;" id="">
+                        <div>
+                            <div>打赏金额: </div>
+                            <div><input type="radio" name="jns-endorse-amount" value="1" ng-checked="true" ng-click="disableAmountInput()"> 1 WJ</div>
+                            <div><input type="radio" name="jns-endorse-amount" value="2" ng-click="disableAmountInput()"> 2 WJ</div>
+                            <div><input type="radio" name="jns-endorse-amount" value="5" ng-click="disableAmountInput()"> 5 WJ</div>
+                            <div><input type="radio" name="jns-endorse-amount" value="10" ng-click="disableAmountInput()"> 10 WJ</div>
+                            <div><input type="radio" name="jns-endorse-amount" value="other" ng-click="enableAmountInput()"> 手动输入</div>
+                            <div>输入金额(大于0小于100 WJ): <input type="text" id="jns-endorse-amount-other-input" data-ng-disabled="disableManualInputAmount" ng-model="endorseAmountInputValue"></input> WJ</div>
+                        </div>
+                    </div>
+                </code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="endorseJNSConfirmDialog()">确定</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end of dialog for input endorse JNS amount -->
+
+<!-- dialog for endorse jns confirm -->
+<div id="dialog-endorsejns-confirm" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+
+        <!-- Modal content-->
+        <div class="modal-content">
+            <center><div class="modal-header">
+                    <h4 class="modal-title"><span id="">打赏确认</span></h4>
+            </div></center>
+            <div class="modal-body">
+                <code style="color:#0000ff">
+                    <div style="word-break:break-all;" id="">
+                        向地址：<span id="jns-endorse-to"> {{realBoundAddress}} </span>
+                        打赏: <span id="jns-endorse-amount"> {{endorseJNSAmount}} </span> WJ
+                    </div>
+                    <div style="color:#ff0000;font-weight:bold;margin:5px 0 5px 0">
+                        警告: JNS打赏的过程不可逆。
+                    </div>
+                    <div style="float:right;">确定吗？</div>
+                </code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal" ng-click="endorseJNSTransfer(realBoundAddress, endorseJNSAmount)">确定</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end of dialog for endorse jns confirm -->
